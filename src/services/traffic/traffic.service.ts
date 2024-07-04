@@ -21,7 +21,7 @@ export class TrafficService {
   constructor(
     private userService: UserService,
     @InjectModel('Traffic') private trafficModel: Model<Traffic>,
-  ) { }
+  ) {}
 
   private traffics: Map<string, Omit<ITraffic, 'id'>> = new Map();
   private currentHighestId = 0;
@@ -101,6 +101,7 @@ export class TrafficService {
     const newTrafficModel = new this.trafficModel({
       server: traffic.serverId,
       startTime: new Date(traffic.startTime).toISOString(),
+      beginServiceTime: new Date(traffic.beginServiceTime).toISOString(),
       endTime: new Date().toISOString(),
     });
     await newTrafficModel.save();

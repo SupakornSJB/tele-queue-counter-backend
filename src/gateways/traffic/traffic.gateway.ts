@@ -17,7 +17,7 @@ import { Socket, Server } from 'socket.io';
 
 @WebSocketGateway({ cors: true })
 export class TrafficGateway {
-  constructor(private trafficService: TrafficService) {}
+  constructor(private trafficService: TrafficService) { }
 
   @WebSocketServer()
   server: Server;
@@ -29,7 +29,13 @@ export class TrafficGateway {
     @ConnectedSocket() client: Socket,
   ) {
     const createdTraffic = this.trafficService.createTraffic(client.id, body);
-    this.server.emit('traffic:create', createdTraffic);
+    this.server.sockets.sockets.forEach((socket) => {
+      socket.emit(
+        'traffic:create',
+        this.trafficService.getPublicTraffic(socket.id, createdTraffic.id),
+      );
+    });
+    // this.server.emit('traffic:create', createdTraffic);
     return;
   }
 
@@ -56,7 +62,15 @@ export class TrafficGateway {
     @MessageBody() body: UpdateTrafficRequest,
   ) {
     const updateTraffic = this.trafficService.updateTraffic(client.id, body);
-    this.server.emit('traffic:update', updateTraffic);
+    this.server.sockets.sockets.forEach((socket) => {
+      socket.emit('traffic:update', {
+        change: this.trafficService.getPublicTraffic(
+          socket.id,
+          updateTraffic.change.id,
+        ),
+      });
+    });
+    // this.server.emit('traffic:update', updateTraffic);
     return;
   }
 }

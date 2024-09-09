@@ -10,30 +10,29 @@ import {
   SaveAndDeleteServerBroadcastResponse,
   SaveAndDeleteServerRequest,
 } from 'src/interfaces/server';
-import { Server, ServerTime } from 'src/schemas/server.schema';
+import { Server, ServerEvent } from 'src/schemas/server.schema';
 import { Model } from 'mongoose';
 
 @Injectable({ scope: Scope.DEFAULT })
 export class ServerService {
-  private servers: Map<string, Omit<IServer, 'id'>> = new Map();
-
   constructor(
     @InjectModel('Server') private serverModel: Model<Server>,
-    @InjectModel('ServerTime') private serverTimeModel: Model<ServerTime>,
-  ) {}
+    @InjectModel('ServerEvent') private serverEventModel: Model<ServerEvent>,
+  ) { }
 
   async createServer(
     info: CreateServerRequest,
   ): Promise<CreateServerBroadcastResponse> {
-    const newServer = {
-      name: info.name,
-      startTime: new Date().toISOString(),
-    };
-    const newSavedServer = new this.serverModel({
+    const newServer = new this.serverModel({
       name: info.name,
     });
-    const savedServer = await newSavedServer.save();
-    this.servers.set(savedServer.id, newServer);
+
+    const newServerEvent = new this.serverEventModel({
+      server: newServer._id,
+      name: "Created",
+      timestamp: Date.now(),
+    })
+    const savedServer = await newServer.save();
 
     return {
       id: savedServer.id,
@@ -63,7 +62,7 @@ export class ServerService {
       throw new WsException('Servers not Found');
 
     const server = this.servers.get(info.id);
-    const savedServer = new this.serverTimeModel({
+    const savedServer = new this.serverEventModel({
       server: serverQuery,
       startTime: new Date(server.startTime).toISOString(),
       endTime: new Date().toISOString(),

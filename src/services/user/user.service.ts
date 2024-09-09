@@ -9,8 +9,6 @@ import {
 
 @Injectable({ scope: Scope.DEFAULT })
 export class UserService {
-  public users: Map<string, Omit<IUser, 'id'>> = new Map();
-
   public getPublicUser(socketId: string, id: string): IUserPublic {
     if (!this.users.has(id))
       throw new WsException('No user with this id is found');
@@ -23,13 +21,11 @@ export class UserService {
   }
 
   public createUser(socketId: string, info: CreateUserRequest): string {
-    console.log('Create user with id ' + socketId);
     this.users.set(socketId, {
       name: info.name,
       color: info.color,
     });
 
-    console.log('map: ' + this.users.size);
     return socketId;
   }
 
@@ -40,5 +36,9 @@ export class UserService {
 
     this.users.delete(info.id);
     return info.id;
+  }
+
+  public async findUserByName(username: string): Promise<IUser | null> {
+    throw new Error("Method not implemented");
   }
 }

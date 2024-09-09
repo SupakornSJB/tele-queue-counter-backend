@@ -8,17 +8,19 @@ import { ServerModule } from './modules/server/server.module';
 import { AppService } from './app.service';
 import { ConfigModule } from '@nestjs/config';
 
+// `mongodb://${process.env.MONGO_USER}:${process.env.MONGO_PASSWORD}@{HOSTNAME}:27017`,
+// HOSTNAME is hostname of the docker container, which is mongo in this case
+
 @Module({
   imports: [
     ConfigModule.forRoot(),
     MongooseModule.forRoot(
-      // `mongodb+srv://${process.env.MONGO_USER}:${process.env.MONGO_PASSWORD}@cluster0.5sklj.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`,
-      'mongodb://localhost:27017',
+      `mongodb://${process.env.MONGO_USER}:${process.env.MONGO_PASSWORD}@mongo:27017`,
+      // "mongodb://localhost:27017",
       {
         dbName: process.env.MONGO_DBNAME,
       }
     ),
-
     UserModule,
     TrafficModule,
     ServerModule,

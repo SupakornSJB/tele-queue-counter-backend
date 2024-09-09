@@ -1,8 +1,13 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { HydratedDocument } from 'mongoose';
+import { User } from './user.schema';
+
+const SERVER_EVENT_ENUM = [
+  "Created", "Saved", "Deleted",
+]
 
 export type ServerDocument = HydratedDocument<Server>;
-export type ServerTimeDocument = HydratedDocument<ServerTime>;
+export type ServerEventDocument = HydratedDocument<ServerEvent>;
 
 @Schema()
 export class Server {
@@ -11,16 +16,19 @@ export class Server {
 }
 
 @Schema()
-export class ServerTime {
+export class ServerEvent {
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Server', required: true })
   server: Server;
 
-  @Prop()
-  startTime: Date;
+  @Prop({ enum: SERVER_EVENT_ENUM, required: true })
+  name: string
 
   @Prop()
-  endTime: Date;
+  timestamp: Date;
+
+  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true })
+  owner: User
 }
 
 export const ServerSchema = SchemaFactory.createForClass(Server);
-export const ServerTimeSchema = SchemaFactory.createForClass(ServerTime);
+export const ServerTimeSchema = SchemaFactory.createForClass(ServerEvent);

@@ -10,13 +10,13 @@ import {
   CreateServerRequest,
   DeleteServerRequest,
   SaveAndDeleteServerRequest,
-} from 'src/interfaces/server';
+} from 'src/dto/server';
 import { ServerService } from 'src/services/server/server.service';
 import { Server } from 'socket.io';
 
 @WebSocketGateway({ cors: true })
 export class ServerGateway {
-  constructor(private serverService: ServerService) {}
+  constructor(private serverService: ServerService) { }
 
   @WebSocketServer()
   server: Server;

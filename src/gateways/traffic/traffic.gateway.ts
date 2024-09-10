@@ -11,7 +11,7 @@ import {
   CreateTrafficRequest,
   DeleteTrafficRequest,
   UpdateTrafficRequest,
-} from 'src/interfaces/traffic';
+} from 'src/dto/traffic';
 import { TrafficService } from 'src/services/traffic/traffic.service';
 import { Socket, Server } from 'socket.io';
 

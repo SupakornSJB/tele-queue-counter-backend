@@ -9,7 +9,7 @@ import {
   IServer,
   SaveAndDeleteServerBroadcastResponse,
   SaveAndDeleteServerRequest,
-} from 'src/interfaces/server';
+} from 'src/dto/server';
 import { Server, ServerEvent } from 'src/schemas/server.schema';
 import { Model } from 'mongoose';
 

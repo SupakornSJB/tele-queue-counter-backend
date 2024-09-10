@@ -14,4 +14,4 @@ import { ServerService } from 'src/services/server/server.service';
   providers: [ServerService, ServerGateway],
   exports: [ServerService],
 })
-export class ServerModule {}
+export class ServerModule { }

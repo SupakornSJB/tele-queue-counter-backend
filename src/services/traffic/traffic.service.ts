@@ -9,7 +9,7 @@ import {
   SaveAndDeleteTrafficRequest,
   UpdateTrafficBroadcastResponse,
   UpdateTrafficRequest,
-} from 'src/interfaces/traffic';
+} from 'src/dto/traffic';
 import { UserService } from '../user/user.service';
 import { WsException } from '@nestjs/websockets';
 import { InjectModel } from '@nestjs/mongoose';
@@ -21,7 +21,7 @@ export class TrafficService {
   constructor(
     private userService: UserService,
     @InjectModel('Traffic') private trafficModel: Model<Traffic>,
-  ) {}
+  ) { }
 
   private traffics: Map<string, Omit<ITraffic, 'id'>> = new Map();
   private currentHighestId = 0;

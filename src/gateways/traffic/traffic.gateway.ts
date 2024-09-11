@@ -6,14 +6,12 @@ import {
   ConnectedSocket,
   WebSocketServer,
 } from '@nestjs/websockets';
+import { WsException } from '@nestjs/websockets';
 import { UseFilters } from '@nestjs/common';
-import {
-  CreateTrafficRequest,
-  DeleteTrafficRequest,
-  UpdateTrafficRequest,
-} from 'src/dto/traffic';
 import { TrafficService } from 'src/services/traffic/traffic.service';
 import { Socket, Server } from 'socket.io';
+import { CreateTrafficDTO, TrafficIdDTO } from 'src/dto/traffic';
+import { TRAFFIC_EVENT_ENUM } from 'src/schemas/traffic.schema';
 
 @WebSocketGateway({ cors: true })
 export class TrafficGateway {
@@ -24,15 +22,15 @@ export class TrafficGateway {
 
   @UseFilters(new BaseWsExceptionFilter())
   @SubscribeMessage('traffic:create')
-  handleCreateTraffic(
-    @MessageBody() body: CreateTrafficRequest,
-    @ConnectedSocket() client: Socket,
+  async handleCreateTraffic(
+    @MessageBody() body: CreateTrafficDTO,
   ) {
-    const createdTraffic = this.trafficService.createTraffic(client.id, body);
-    this.server.sockets.sockets.forEach((socket) => {
+    throw new Error("Method Not Implemented: Socket ID should not be used for user id anymore, pls change");
+    const createdTraffic = await this.trafficService.createTraffic(body.userId, body);
+    this.server.sockets.sockets.forEach(async (socket) => {
       socket.emit(
         'traffic:create',
-        this.trafficService.getPublicTraffic(socket.id, createdTraffic.id),
+        await this.trafficService.queryPublicTrafficById(socket.id, createdTraffic.id),
       );
     });
     // this.server.emit('traffic:create', createdTraffic);
@@ -40,37 +38,28 @@ export class TrafficGateway {
   }
 
   @UseFilters(new BaseWsExceptionFilter())
+  @SubscribeMessage('traffic:end-service')
+  async handleEndTrafficService(@MessageBody() body: TrafficIdDTO) {
+    const endedTraffic = await this.trafficService.updateTrafficStatus(body.userId, body.id, TRAFFIC_EVENT_ENUM.END_SERVICE);
+    this.server.emit('traffic:end-service', endedTraffic);
+    return;
+  }
+
+  @UseFilters(new BaseWsExceptionFilter())
   @SubscribeMessage('traffic:delete')
-  handleDeleteTraffic(@MessageBody() body: DeleteTrafficRequest) {
-    const deletedTraffic = this.trafficService.deleteTraffic(body);
+  async handleDeleteTraffic(@MessageBody() body: TrafficIdDTO) {
+    const deletedTraffic = await this.trafficService.updateTrafficStatus(body.userId, body.id, TRAFFIC_EVENT_ENUM.DELETED);
     this.server.emit('traffic:delete', deletedTraffic);
     return;
   }
 
   @UseFilters(new BaseWsExceptionFilter())
-  @SubscribeMessage('traffic:save-and-delete')
-  async handleSaveThenDelete(@MessageBody() body: DeleteTrafficRequest) {
-    const deletedTraffic = await this.trafficService.saveAndDeleteTraffic(body);
-    this.server.emit('traffic:delete', deletedTraffic);
-    return;
-  }
-
-  @UseFilters(new BaseWsExceptionFilter())
-  @SubscribeMessage('traffic:update')
+  @SubscribeMessage('traffic:begin-service')
   handleUpdate(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() body: UpdateTrafficRequest,
+    @MessageBody() body: TrafficIdDTO,
   ) {
-    const updateTraffic = this.trafficService.updateTraffic(client.id, body);
-    this.server.sockets.sockets.forEach((socket) => {
-      socket.emit('traffic:update', {
-        change: this.trafficService.getPublicTraffic(
-          socket.id,
-          updateTraffic.change.id,
-        ),
-      });
-    });
-    // this.server.emit('traffic:update', updateTraffic);
+    const updateTraffic = this.trafficService.updateTrafficStatus(body.userId, body.id, TRAFFIC_EVENT_ENUM.BEGIN_SERVICE);
+    this.server.emit('traffic:begin-service', updateTraffic);
     return;
   }
 }

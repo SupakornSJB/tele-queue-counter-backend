@@ -1,126 +1,82 @@
 import { Injectable, Scope } from '@nestjs/common';
-import {
-  CreateTrafficRequest,
-  DeleteTrafficBroadcastResponse,
-  DeleteTrafficRequest,
-  ITraffic,
-  ITrafficPublic,
-  SaveAndDeleteTrafficBroadcastResponse,
-  SaveAndDeleteTrafficRequest,
-  UpdateTrafficBroadcastResponse,
-  UpdateTrafficRequest,
-} from 'src/dto/traffic';
 import { UserService } from '../user/user.service';
-import { WsException } from '@nestjs/websockets';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Traffic } from 'src/schemas/traffic.schema';
+import { Traffic, TrafficDocument, TrafficEvent } from 'src/schemas/traffic.schema';
+import { CreateTrafficDTO, TrafficDTOIncludeOwnership, TrafficDTO, TrafficIdDTO } from 'src/dto/traffic';
+import { TRAFFIC_EVENT_ENUM } from 'src/schemas/traffic.schema';
 
 @Injectable({ scope: Scope.DEFAULT })
 export class TrafficService {
   constructor(
     private userService: UserService,
     @InjectModel('Traffic') private trafficModel: Model<Traffic>,
+    @InjectModel('TrafficEvent') private trafficEventModel: Model<TrafficEvent>,
   ) { }
 
-  private traffics: Map<string, Omit<ITraffic, 'id'>> = new Map();
-  private currentHighestId = 0;
-
-  public getPublicTraffic(
-    socketId: string,
-    id: string,
-    throwOnError = true,
-  ): ITrafficPublic {
-    if (!this.traffics.has(id)) throw new WsException('Traffic not found');
-    const findTrafficResult = this.traffics.get(id);
-
-    try {
-      const findUserResult = this.userService.getPublicUser(
-        socketId,
-        findTrafficResult.ownerId,
-      );
-      return {
-        id,
-        ...findTrafficResult,
-        owner: findUserResult,
-        isWaiting: findTrafficResult.beginServiceTime == null,
-      };
-    } catch (e: unknown) {
-      if (throwOnError) throw e;
-      else {
-        return {
-          id,
-          ...findTrafficResult,
-          owner: {
-            name: 'Unknown',
-            color: '000000',
-            isOwner: false,
-          },
-          isWaiting: findTrafficResult.beginServiceTime == null,
-        };
-      }
-    }
+  async queryIsWaiting(trafficId: string): Promise<boolean> {
+    return !!!(await this.trafficEventModel.findOne({ traffic: trafficId, event: TRAFFIC_EVENT_ENUM.BEGIN_SERVICE }))
   }
 
-  public getAllPublicTraffic(socketId: string): ITrafficPublic[] {
-    return Array.from(this.traffics.keys()).map((key) =>
-      this.getPublicTraffic(socketId, key, false),
-    );
+  async queryIsOwner(traffic: TrafficDocument, accessorId: string): Promise<boolean> {
+    const user = await this.userService.findUserByName(traffic.owner.name);
+    if (!user) throw new Error("User Not Found")
+    return user.id === accessorId;
   }
 
-  public createTraffic(
-    socketId: string,
-    info: CreateTrafficRequest,
-  ): ITrafficPublic {
-    const id = this.getNewId();
-    this.traffics.set(id, {
-      serverId: info.serverId,
-      note: '',
-      ownerId: socketId,
-      startTime: new Date().toISOString(),
-      beginServiceTime: null,
-    });
-    const publicTraffic = this.getPublicTraffic(socketId, id);
-    return publicTraffic;
+  async convertTrafficDocToPublic(trafficDoc: TrafficDocument, accessorId: string): Promise<TrafficDTOIncludeOwnership> {
+    const [isWaiting, isOwner] = await Promise.all([
+      this.queryIsWaiting(trafficDoc.id),
+      this.queryIsOwner(trafficDoc, accessorId),
+    ])
+    return new TrafficDTOIncludeOwnership(trafficDoc, isOwner, isWaiting);
   }
 
-  public deleteTraffic(
-    info: DeleteTrafficRequest,
-  ): DeleteTrafficBroadcastResponse {
-    if (!this.traffics.delete(info.id))
-      throw new WsException('Traffic not found');
-    return info;
+  async convertTrafficDocToDTO(trafficDoc: TrafficDocument): Promise<TrafficDTO> {
+    const isWaiting = await this.queryIsWaiting(trafficDoc.id);
+    return new TrafficDTO(trafficDoc, isWaiting);
   }
 
-  public async saveAndDeleteTraffic(
-    info: SaveAndDeleteTrafficRequest,
-  ): Promise<SaveAndDeleteTrafficBroadcastResponse> {
-    if (!this.traffics.has(info.id)) throw new WsException('Traffic Not Found');
-    const traffic = this.traffics.get(info.id);
-
-    const newTrafficModel = new this.trafficModel({
-      server: traffic.serverId,
-      startTime: new Date(traffic.startTime).toISOString(),
-      beginServiceTime: new Date(traffic.beginServiceTime).toISOString(),
-      endTime: new Date().toISOString(),
-    });
-    await newTrafficModel.save();
-    return { id: info.id };
+  public async queryPublicTrafficById(
+    accessorId: string,
+    trafficId: string,
+  ): Promise<TrafficDTOIncludeOwnership> {
+    const traffic = await this.trafficModel.findById(trafficId);
+    return this.convertTrafficDocToPublic(traffic, accessorId);
   }
 
-  public updateTraffic(
-    socketId: string,
-    info: UpdateTrafficRequest,
-  ): UpdateTrafficBroadcastResponse {
-    const traffic = { ...this.traffics.get(info.id) };
-    traffic.beginServiceTime = new Date().toISOString();
-    this.traffics.set(info.id, traffic);
-    return {
-      change: this.getPublicTraffic(socketId, info.id),
-    };
+  public async getAllActiveTraffic(accessorId: string): Promise<TrafficDTOIncludeOwnership[]> {
+    const userTraffic = await this.trafficModel.find({ owner: accessorId });
+    return Promise.all(userTraffic.map((traffic) => this.convertTrafficDocToPublic(traffic, accessorId)));
   }
 
-  private getNewId() {
-    return (this.currentHighestId++).toString();
+  public async createTraffic(
+    creatorId: string,
+    info: CreateTrafficDTO
+  ): Promise<TrafficDTOIncludeOwnership> {
+    const newTraffic = new this.trafficModel({
+      server: info.serverId,
+      owner: creatorId,
+    })
+    await newTraffic.save();
+    await this.updateTrafficStatus(creatorId, newTraffic.id, TRAFFIC_EVENT_ENUM.CREATED);
+    return this.convertTrafficDocToPublic(newTraffic, creatorId)
+  }
+
+  public async updateTrafficStatus(
+    accessorId: string,
+    trafficId: string,
+    trafficEventEnum: TRAFFIC_EVENT_ENUM
+  ): Promise<TrafficDTO> {
+    const traffic = await this.trafficModel.findById(trafficId);
+    if (!traffic) throw new Error("Traffic Not Found");
+    const event = new this.trafficEventModel({
+      traffic: traffic.id,
+      event: trafficEventEnum,
+      timestamp: new Date(),
+      owner: accessorId,
+    })
+    await event.save();
+    return await this.convertTrafficDocToDTO(traffic);
   }
 }

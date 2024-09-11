@@ -24,7 +24,7 @@ export class MainGateway {
     client.emit('sync-all', {
       user: this.userService.getPublicUser(client.id, client.id),
       servers: this.serverService.getServers(),
-      traffics: this.trafficService.getAllPublicTraffic(client.id),
+      traffics: this.trafficService.getAllActiveTraffic(client.id),
     });
     return;
   }

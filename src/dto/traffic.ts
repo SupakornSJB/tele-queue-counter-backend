@@ -1,25 +1,38 @@
-import { TrafficDocument } from "src/schemas/traffic.schema";
+import { TRAFFIC_EVENT_ENUM, TrafficDocument } from "src/schemas/traffic.schema";
 import { Server } from "src/schemas/server.schema";
+import { BaseDTO } from "./base";
 
-export class CreateTrafficDTO {
+export class CreateTrafficDTO extends BaseDTO {
   readonly serverId: string;
 }
 
-export class TrafficEventDTO {
+export class TrafficEventDTO extends BaseDTO {
   readonly id: string;
-  readonly eventName: string;
+  readonly eventName: TRAFFIC_EVENT_ENUM;
 }
 
-export class PublicTrafficDTO {
-  readonly id: string
-  readonly server: Server
-  readonly isOwner: boolean;
+export class TrafficIdDTO extends BaseDTO {
+  readonly id: string;
+}
+
+export class TrafficDTO extends BaseDTO {
+  readonly id: string;
+  readonly server: Server;
   readonly isWaiting: boolean;
 
-  constructor(traffic: TrafficDocument, isOwner: boolean, isWaiting: boolean) {
+  constructor(traffic: TrafficDocument, isWaiting: boolean) {
+    super();
     this.id = traffic.id;
-    this.server = traffic.server
-    this.isOwner = isOwner;
+    this.server = traffic.server;
     this.isWaiting = isWaiting;
+  }
+}
+
+export class TrafficDTOIncludeOwnership extends TrafficDTO {
+  readonly isOwner: boolean;
+
+  constructor(traffic: TrafficDocument, isOwner: boolean, isWaiting: boolean) {
+    super(traffic, isWaiting);
+    this.isOwner = isOwner;
   }
 }

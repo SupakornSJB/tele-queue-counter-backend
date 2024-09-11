@@ -3,7 +3,12 @@ import mongoose, { HydratedDocument } from 'mongoose';
 import { Server } from './server.schema';
 import { User } from './user.schema';
 
-const TRAFFIC_EVENT_ENUM = ["Start", "BeginService", "EndService"]
+export enum TRAFFIC_EVENT_ENUM {
+  CREATED = "Created",
+  BEGIN_SERVICE = "BeginService",
+  END_SERVICE = "EndService",
+  DELETED = "Deleted"
+}
 
 export type TrafficDocument = HydratedDocument<Traffic>;
 export type TrafficEventDocument = HydratedDocument<TrafficEvent>;
@@ -12,6 +17,9 @@ export type TrafficEventDocument = HydratedDocument<TrafficEvent>;
 export class Traffic {
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Server' })
   server: Server;
+
+  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'User' })
+  owner: User
 }
 
 export class TrafficEvent {
@@ -19,7 +27,7 @@ export class TrafficEvent {
   traffic: Traffic
 
   @Prop({ enum: TRAFFIC_EVENT_ENUM, required: true })
-  event: string
+  event: TRAFFIC_EVENT_ENUM
 
   @Prop()
   timestamp: Date

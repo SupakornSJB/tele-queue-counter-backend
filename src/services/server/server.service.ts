@@ -1,15 +1,6 @@
 import { Injectable, Scope } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { WsException } from '@nestjs/websockets';
-import {
-  CreateServerBroadcastResponse,
-  CreateServerRequest,
-  DeleteServerBroadcaseResponse,
-  DeleteServerRequest,
-  IServer,
-  SaveAndDeleteServerBroadcastResponse,
-  SaveAndDeleteServerRequest,
-} from 'src/dto/server';
 import { Server, ServerEvent } from 'src/schemas/server.schema';
 import { Model } from 'mongoose';
 

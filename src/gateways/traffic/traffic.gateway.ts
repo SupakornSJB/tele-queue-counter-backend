@@ -7,15 +7,19 @@ import {
   WebSocketServer,
 } from '@nestjs/websockets';
 import { WsException } from '@nestjs/websockets';
-import { UseFilters } from '@nestjs/common';
+import { Inject, UseFilters } from '@nestjs/common';
 import { TrafficService } from 'src/services/traffic/traffic.service';
 import { Socket, Server } from 'socket.io';
 import { CreateTrafficDTO, TrafficIdDTO } from 'src/dto/traffic';
 import { TRAFFIC_EVENT_ENUM } from 'src/schemas/traffic.schema';
+import { UserService } from 'src/services/user/user.service';
 
 @WebSocketGateway({ cors: true })
 export class TrafficGateway {
-  constructor(private trafficService: TrafficService) { }
+  constructor(
+    private trafficService: TrafficService,
+    private userService: UserService
+  ) { }
 
   @WebSocketServer()
   server: Server;
@@ -25,15 +29,15 @@ export class TrafficGateway {
   async handleCreateTraffic(
     @MessageBody() body: CreateTrafficDTO,
   ) {
-    throw new Error("Method Not Implemented: Socket ID should not be used for user id anymore, pls change");
     const createdTraffic = await this.trafficService.createTraffic(body.userId, body);
-    this.server.sockets.sockets.forEach(async (socket) => {
+    Promise.allSettled(Array.from(this.server.sockets.sockets.values(), async (socket) => {
+      const user = await this.userService.findUserFromSocketId(socket.id);
+      if (!user) return;
       socket.emit(
         'traffic:create',
-        await this.trafficService.queryPublicTrafficById(socket.id, createdTraffic.id),
+        await this.trafficService.queryPublicTrafficById(user.id, createdTraffic.id),
       );
-    });
-    // this.server.emit('traffic:create', createdTraffic);
+    }));
     return;
   }
 

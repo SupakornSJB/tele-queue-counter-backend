@@ -6,11 +6,6 @@ import {
   WebSocketServer,
 } from '@nestjs/websockets';
 import { UseFilters } from '@nestjs/common';
-import {
-  CreateServerRequest,
-  DeleteServerRequest,
-  SaveAndDeleteServerRequest,
-} from 'src/dto/server';
 import { ServerService } from 'src/services/server/server.service';
 import { Server } from 'socket.io';
 

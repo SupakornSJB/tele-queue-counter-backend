@@ -3,7 +3,7 @@ import { UserService } from '../user/user.service';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Traffic, TrafficDocument, TrafficEvent } from 'src/schemas/traffic.schema';
-import { CreateTrafficDTO, TrafficDTOIncludeOwnership, TrafficDTO, TrafficIdDTO } from 'src/dto/traffic';
+import { CreateTrafficDTO, TrafficDTOIncludeOwnership, TrafficDTO } from 'src/dto/traffic';
 import { TRAFFIC_EVENT_ENUM } from 'src/schemas/traffic.schema';
 
 @Injectable({ scope: Scope.DEFAULT })

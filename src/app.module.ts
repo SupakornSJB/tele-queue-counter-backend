@@ -6,7 +6,9 @@ import { UserModule } from './modules/user/user.module';
 import { TrafficModule } from './modules/traffic/traffic.module';
 import { ServerModule } from './modules/server/server.module';
 import { AppService } from './app.service';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { CacheModule } from '@nestjs/cache-manager';
+import * as redisStore from 'cache-manager-redis-store';
 
 // `mongodb://${process.env.MONGO_USER}:${process.env.MONGO_PASSWORD}@{HOSTNAME}:27017`,
 // HOSTNAME is hostname of the docker container, which is mongo in this case
@@ -14,13 +16,27 @@ import { ConfigModule } from '@nestjs/config';
 @Module({
   imports: [
     ConfigModule.forRoot(),
-    MongooseModule.forRoot(
-      `mongodb://${process.env.MONGO_USER}:${process.env.MONGO_PASSWORD}@mongo:27017`,
+    CacheModule.register({
+      isGlobal: true,
+      useFactory: (configService: ConfigService) => ({
+        store: redisStore,
+        host: configService.getOrThrow("REDIS_HOST"),
+        port: configService.getOrThrow("REDIS_PORT")
+      })
+    }),
+    MongooseModule.forRootAsync({
+      useFactory: (configService: ConfigService) => ({
+        uri: `mongodb://
+          ${configService.getOrThrow("MONGO_USER")}:
+          ${configService.getOrThrow("MONGO_PASSWORD")}@
+          ${configService.getOrThrow("MONGO_HOSTNAME")}:
+          ${configService.getOrThrow("MONGO_PORT")}`
+      })
       // "mongodb://localhost:27017",
-      {
-        dbName: process.env.MONGO_DBNAME,
-      }
-    ),
+      // {
+      //   dbName: process.env.MONGO_DBNAME,
+      // }
+    }),
     UserModule,
     TrafficModule,
     ServerModule,

@@ -1,7 +1,11 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import mongoose, { HydratedDocument } from "mongoose";
 
-const USER_EVENT_ENUM = ["Created", "LoggedOut"]
+export enum USER_EVENT_ENUM {
+  CREATED = "Created",
+  LOGGED_IN = "LoggedIn",
+  LOGGED_OUT = "LoggedOut"
+}
 
 export type UserDocument = HydratedDocument<User>;
 export type UserEventDocument = HydratedDocument<UserEvent>;

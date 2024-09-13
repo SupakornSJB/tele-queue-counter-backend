@@ -13,6 +13,20 @@ export class TrafficService {
     @InjectModel('Traffic') private trafficModel: Model<Traffic>,
     @InjectModel('TrafficEvent') private trafficEventModel: Model<TrafficEvent>,
   ) { }
+  async queryIsActive(trafficId: string): Promise<boolean> {
+    const eventList = await this.trafficEventModel.find({
+      traffic: trafficId,
+      $or: [
+        {
+          event: TRAFFIC_EVENT_ENUM.DELETED
+        },
+        {
+          event: TRAFFIC_EVENT_ENUM.END_SERVICE
+        }
+      ]
+    });
+    return eventList.length === 0;
+  }
 
   async queryIsWaiting(trafficId: string): Promise<boolean> {
     return !!!(await this.trafficEventModel.findOne({ traffic: trafficId, event: TRAFFIC_EVENT_ENUM.BEGIN_SERVICE }))
@@ -46,8 +60,9 @@ export class TrafficService {
   }
 
   public async getAllActiveTraffic(accessorId: string): Promise<TrafficDTOIncludeOwnership[]> {
-    const userTraffic = await this.trafficModel.find({ owner: accessorId });
-    return Promise.all(userTraffic.map((traffic) => this.convertTrafficDocToPublic(traffic, accessorId)));
+    const userTraffic = await this.trafficModel.find();
+    const activeTraffic = userTraffic.filter(async (traffic) => await this.queryIsActive(traffic.id))
+    return Promise.all(activeTraffic.map((traffic) => this.convertTrafficDocToPublic(traffic, accessorId)));
   }
 
   public async createTraffic(

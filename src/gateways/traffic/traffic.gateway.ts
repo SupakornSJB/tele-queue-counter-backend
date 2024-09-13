@@ -3,13 +3,11 @@ import {
   SubscribeMessage,
   WebSocketGateway,
   MessageBody,
-  ConnectedSocket,
   WebSocketServer,
 } from '@nestjs/websockets';
-import { WsException } from '@nestjs/websockets';
-import { Inject, UseFilters } from '@nestjs/common';
+import { UseFilters } from '@nestjs/common';
 import { TrafficService } from 'src/services/traffic/traffic.service';
-import { Socket, Server } from 'socket.io';
+import { Server } from 'socket.io';
 import { CreateTrafficDTO, TrafficIdDTO } from 'src/dto/traffic';
 import { TRAFFIC_EVENT_ENUM } from 'src/schemas/traffic.schema';
 import { UserService } from 'src/services/user/user.service';
@@ -45,7 +43,7 @@ export class TrafficGateway {
   @SubscribeMessage('traffic:end-service')
   async handleEndTrafficService(@MessageBody() body: TrafficIdDTO) {
     const endedTraffic = await this.trafficService.updateTrafficStatus(body.userId, body.id, TRAFFIC_EVENT_ENUM.END_SERVICE);
-    this.server.emit('traffic:end-service', endedTraffic);
+    this.server.emit('traffic:end-service', new TrafficIdDTO(endedTraffic));
     return;
   }
 
@@ -53,17 +51,17 @@ export class TrafficGateway {
   @SubscribeMessage('traffic:delete')
   async handleDeleteTraffic(@MessageBody() body: TrafficIdDTO) {
     const deletedTraffic = await this.trafficService.updateTrafficStatus(body.userId, body.id, TRAFFIC_EVENT_ENUM.DELETED);
-    this.server.emit('traffic:delete', deletedTraffic);
+    this.server.emit('traffic:delete', new TrafficIdDTO(deletedTraffic));
     return;
   }
 
   @UseFilters(new BaseWsExceptionFilter())
   @SubscribeMessage('traffic:begin-service')
-  handleUpdate(
+  async handleUpdate(
     @MessageBody() body: TrafficIdDTO,
   ) {
-    const updateTraffic = this.trafficService.updateTrafficStatus(body.userId, body.id, TRAFFIC_EVENT_ENUM.BEGIN_SERVICE);
-    this.server.emit('traffic:begin-service', updateTraffic);
+    const updateTraffic = await this.trafficService.updateTrafficStatus(body.userId, body.id, TRAFFIC_EVENT_ENUM.BEGIN_SERVICE);
+    this.server.emit('traffic:begin-service', new TrafficIdDTO(updateTraffic));
     return;
   }
 }

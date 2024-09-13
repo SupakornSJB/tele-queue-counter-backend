@@ -23,7 +23,7 @@ export class ServerEvent {
   server: Server;
 
   @Prop({ enum: SERVER_EVENT_ENUM, required: true })
-  name: string
+  event: string
 
   @Prop()
   timestamp: Date;

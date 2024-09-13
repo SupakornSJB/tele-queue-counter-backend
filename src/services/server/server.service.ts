@@ -1,8 +1,8 @@
 import { Injectable, Scope } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { WsException } from '@nestjs/websockets';
-import { Server, ServerEvent } from 'src/schemas/server.schema';
+import { SERVER_EVENT_ENUM, Server, ServerEvent, ServerEventDocument } from 'src/schemas/server.schema';
 import { Model } from 'mongoose';
+import { PublicServerDTO } from 'src/dto/server';
 
 @Injectable({ scope: Scope.DEFAULT })
 export class ServerService {
@@ -11,57 +11,57 @@ export class ServerService {
     @InjectModel('ServerEvent') private serverEventModel: Model<ServerEvent>,
   ) { }
 
-  async createServer(
-    info: CreateServerRequest,
-  ): Promise<CreateServerBroadcastResponse> {
+  async queryIsActive(serverId: string): Promise<boolean> {
+    const serverEventList = await this.serverEventModel.find({
+      server: serverId,
+      $or: [
+        {
+          event: SERVER_EVENT_ENUM.SAVED
+        },
+        {
+          event: SERVER_EVENT_ENUM.DELETE
+        }
+      ]
+    });
+    return serverEventList.length === 0;
+  }
+
+  getIsActive(serverEventQuery: ServerEventDocument[]) {
+    return serverEventQuery.filter((event) => event.event === SERVER_EVENT_ENUM.SAVED || event.event === SERVER_EVENT_ENUM.DELETE).length === 0;
+  }
+
+  public async createServer(
+    creatorId: string,
+    name: string,
+  ): Promise<PublicServerDTO> {
     const newServer = new this.serverModel({
-      name: info.name,
+      name,
     });
-
-    const newServerEvent = new this.serverEventModel({
-      server: newServer._id,
-      name: "Created",
-      timestamp: Date.now(),
-    })
-    const savedServer = await newServer.save();
-
-    return {
-      id: savedServer.id,
-      ...newServer,
-    };
+    await newServer.save();
+    await this.updateServerStatus(creatorId, newServer.id, SERVER_EVENT_ENUM.CREATED);
+    return new PublicServerDTO(newServer, true);
   }
 
-  getServers(): IServer[] {
-    return Array.from(this.servers.entries()).map((serverArr) => {
-      return { id: serverArr[0], ...serverArr[1] };
-    });
+  public async getAllActiveServer(): Promise<PublicServerDTO[]> {
+    const serverList = await this.serverModel.find();
+    const activeList = serverList.filter(async server => await this.queryIsActive(server.id));
+    return activeList.map((server) => new PublicServerDTO(server, true));
   }
 
-  deleteServer(info: DeleteServerRequest): DeleteServerBroadcaseResponse {
-    if (!this.servers.delete(info.id))
-      throw new WsException('Server not found');
-    return {
-      id: info.id,
-    };
-  }
-
-  async saveAndDeleteServer(
-    info: SaveAndDeleteServerRequest,
-  ): Promise<SaveAndDeleteServerBroadcastResponse> {
-    const serverQuery = await this.serverModel.findById(info.id).exec();
-    if (!this.servers.has(info.id) || !serverQuery)
-      throw new WsException('Servers not Found');
-
-    const server = this.servers.get(info.id);
-    const savedServer = new this.serverEventModel({
-      server: serverQuery,
-      startTime: new Date(server.startTime).toISOString(),
-      endTime: new Date().toISOString(),
+  public async updateServerStatus(
+    ownerId: string,
+    serverId: string,
+    eventEnum: SERVER_EVENT_ENUM
+  ): Promise<PublicServerDTO> {
+    const server = await this.serverModel.findById(serverId);
+    if (!server) throw new Error("Server Not Found");
+    const event = new this.serverEventModel({
+      server: server.id,
+      event: eventEnum,
+      timestamp: new Date(),
+      owner: ownerId,
     });
-    await savedServer.save();
-    this.deleteServer(info);
-    return {
-      id: info.id,
-    };
+    await event.save();
+    return new PublicServerDTO(server, this.getIsActive(await this.serverEventModel.find({ server: serverId })))
   }
 }

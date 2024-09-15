@@ -7,6 +7,11 @@ export class CreateUserDTO extends BaseDTO {
 
 export class AuthUserDTO extends BaseDTO {
   readonly token: string;
+
+  constructor(token: string) {
+    super();
+    this.token = token
+  }
 }
 
 export class UserEventDTO extends BaseDTO {

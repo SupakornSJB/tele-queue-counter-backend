@@ -2,7 +2,7 @@ import { Injectable, Scope } from '@nestjs/common';
 import { UserService } from '../user/user.service';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Traffic, TrafficDocument, TrafficEvent } from 'src/schemas/traffic.schema';
+import { Traffic, TrafficDocument, TrafficEvent, TrafficEventDocument } from 'src/schemas/traffic.schema';
 import { CreateTrafficDTO, TrafficDTOIncludeOwnership, TrafficDTO } from 'src/dto/traffic';
 import { TRAFFIC_EVENT_ENUM } from 'src/schemas/traffic.schema';
 
@@ -28,8 +28,16 @@ export class TrafficService {
     return eventList.length === 0;
   }
 
-  async queryIsWaiting(trafficId: string): Promise<boolean> {
-    return !!!(await this.trafficEventModel.findOne({ traffic: trafficId, event: TRAFFIC_EVENT_ENUM.BEGIN_SERVICE }))
+  async queryWaitingInfo(trafficId: string): Promise<{ isWaiting: boolean, createEvent: TrafficEventDocument }> {
+    const [createEvent, beginServiceEvent] = await Promise.allSettled([
+      this.trafficEventModel.findOne({ traffic: trafficId, event: TRAFFIC_EVENT_ENUM.CREATED }),
+      this.trafficEventModel.findOne({ traffic: trafficId, event: TRAFFIC_EVENT_ENUM.BEGIN_SERVICE }),
+    ])
+
+    return {
+      isWaiting: beginServiceEvent.status == "fulfilled" ? !!!beginServiceEvent.value : false,
+      createEvent: createEvent.status == "fulfilled" ? createEvent.value : null
+    }
   }
 
   async queryIsOwner(traffic: TrafficDocument, accessorId: string): Promise<boolean> {
@@ -39,16 +47,16 @@ export class TrafficService {
   }
 
   async convertTrafficDocToPublic(trafficDoc: TrafficDocument, accessorId: string): Promise<TrafficDTOIncludeOwnership> {
-    const [isWaiting, isOwner] = await Promise.all([
-      this.queryIsWaiting(trafficDoc.id),
+    const [{ isWaiting, createEvent }, isOwner] = await Promise.all([
+      this.queryWaitingInfo(trafficDoc.id),
       this.queryIsOwner(trafficDoc, accessorId),
     ])
-    return new TrafficDTOIncludeOwnership(trafficDoc, isOwner, isWaiting);
+    return new TrafficDTOIncludeOwnership(trafficDoc, createEvent, isOwner, isWaiting);
   }
 
   async convertTrafficDocToDTO(trafficDoc: TrafficDocument): Promise<TrafficDTO> {
-    const isWaiting = await this.queryIsWaiting(trafficDoc.id);
-    return new TrafficDTO(trafficDoc, isWaiting);
+    const { isWaiting, createEvent } = await this.queryWaitingInfo(trafficDoc.id);
+    return new TrafficDTO(trafficDoc, createEvent, isWaiting);
   }
 
   public async queryPublicTrafficById(

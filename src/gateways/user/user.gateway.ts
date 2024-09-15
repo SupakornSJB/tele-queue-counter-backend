@@ -7,7 +7,7 @@ import {
   ConnectedSocket
 } from '@nestjs/websockets';
 import { UseFilters } from '@nestjs/common';
-import { CreateUserDTO, UserDTO } from 'src/dto/user';
+import { AuthUserDTO, CreateUserDTO, UserDTO } from 'src/dto/user';
 import { Socket } from 'socket.io';
 import { UserService } from 'src/services/user/user.service';
 import { Public } from 'src/guards/auth.guard';
@@ -41,7 +41,7 @@ export class UserGateway implements OnGatewayDisconnect {
       this.generateToken(user)
     ])
     this.userService.saveUsersSocketId(socket.id, token);
-    return token;
+    return new AuthUserDTO(token);
   }
 
   async generateToken(payload: UserDTO) {

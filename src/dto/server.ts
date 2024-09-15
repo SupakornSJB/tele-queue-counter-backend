@@ -1,4 +1,4 @@
-import { SERVER_EVENT_ENUM, ServerDocument } from "src/schemas/server.schema";
+import { SERVER_EVENT_ENUM, ServerDocument, ServerEventDocument } from "src/schemas/server.schema";
 import { BaseDTO } from "./base";
 
 export class CreateServerDTO extends BaseDTO {
@@ -32,9 +32,11 @@ export class ServerDTO extends BaseDTO {
 
 export class PublicServerDTO extends ServerDTO {
   readonly isActive: boolean;
+  readonly creationTime: Date;
 
-  constructor(server: ServerDocument, isActive: boolean) {
+  constructor(server: ServerDocument, createEvent: ServerEventDocument, isActive: boolean) {
     super(server);
     this.isActive = isActive;
+    this.creationTime = createEvent.timestamp;
   }
 }

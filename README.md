@@ -26,6 +26,11 @@
 
 [Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
 
+## To start the application
+
+- Run the command `docker run -d -p 27017:27017 --name=mongo-tele mongo:latest` to start the mongo server
+- Run the command `npm start` or `nest start`
+
 ## Installation
 
 ```bash
